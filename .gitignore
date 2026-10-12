@@ -1,0 +1,11 @@
+# Python & Virtual Environments
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Flask & Local Databases
+instance/
+*.db
+.env

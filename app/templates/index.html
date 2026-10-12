@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Expiry Alert Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth transitions and custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-sky-500 p-2 rounded-lg text-white">
+                        <i class="fa-solid fa-boxes-stacked text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight tracking-wide">Product Expiry Manager</h1>
+                        <p class="text-xs text-slate-400">Security-Focused Inventory Control</p>
+                    </div>
+                </div>
+
+                <!-- API Connection Toggle & User Profile -->
+                <div class="flex items-center space-x-4">
+                    <!-- Mode Selector -->
+                    <div class="hidden md:flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                        <button id="mode-demo" onclick="setMode('demo')" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors bg-sky-600 text-white">
+                            Demo Data Mode
+                        </button>
+                        <button id="mode-live" onclick="setMode('live')" class="px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-colors">
+                            Live API (Flask)
+                        </button>
+                    </div>
+
+                    <!-- User Profile Badge / Auth Buttons -->
+                    <div id="user-profile-section" class="flex items-center space-x-3">
+                        <!-- Dynamic user status populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- High-Priority Alerts Banner -->
+    <div id="alert-banner" class="bg-amber-500 text-slate-950 px-4 py-2.5 shadow-inner hidden">
+        <div class="max-w-7xl mx-auto flex items-center justify-between text-sm font-medium">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-triangle-exclamation text-lg animate-bounce"></i>
+                <span id="alert-banner-text">Attention: Items require immediate stock rotation!</span>
+            </div>
+            <button onclick="dismissAlertBanner()" class="text-slate-900 hover:text-black font-bold text-lg leading-none">
+                &times;
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        <!-- Summary Cards Grid -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <!-- Total Products -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between transition-transform hover:-translate-y-0.5">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Products</p>
+                    <h3 id="stat-total" class="text-3xl font-extrabold text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
+                    <i class="fa-solid fa-cubes text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Fresh / Safe Products -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between transition-transform hover:-translate-y-0.5">
+                <div>
+                    <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Fresh / Safe</p>
+                    <h3 id="stat-fresh" class="text-3xl font-extrabold text-emerald-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                    <i class="fa-solid fa-circle-check text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Expiring Soon -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between transition-transform hover:-translate-y-0.5">
+                <div>
+                    <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Expiring (&le; 30 Days)</p>
+                    <h3 id="stat-expiring" class="text-3xl font-extrabold text-amber-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                    <i class="fa-solid fa-clock text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Expired Products -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between transition-transform hover:-translate-y-0.5">
+                <div>
+                    <p class="text-xs font-semibold text-rose-600 uppercase tracking-wider">Expired</p>
+                    <h3 id="stat-expired" class="text-3xl font-extrabold text-rose-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
+                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search, Filter, and Action Toolbar -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                
+                <!-- Search & Filters -->
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-grow max-w-2xl">
+                    <!-- Search Input -->
+                    <div class="relative w-full">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Search by name or batch number..." 
+                            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition-all">
+                    </div>
+
+                    <!-- Category & Status Filters -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="filter-status" onchange="filterProducts()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg p-2 focus:ring-sky-500 focus:outline-none w-full sm:w-auto">
+                            <option value="ALL">All Statuses</option>
+                            <option value="Fresh">Fresh</option>
+                            <option value="Expiring Soon">Expiring Soon</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Buttons: Add Product & CSV Export -->
+                <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                    <button onclick="exportToCSV()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center space-x-2 border border-slate-300">
+                        <i class="fa-solid fa-file-csv text-emerald-600 text-base"></i>
+                        <span>Export CSV</span>
+                    </button>
+                    <button id="add-product-btn" onclick="openProductModal()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center space-x-2 shadow-sm">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Add Product</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-bold tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3">Product Name</th>
+                            <th class="px-4 py-3">Category</th>
+                            <th class="px-4 py-3">Batch #</th>
+                            <th class="px-4 py-3 text-center">Qty</th>
+                            <th class="px-4 py-3">Mfg Date</th>
+                            <th class="px-4 py-3">Expiry Date</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body" class="divide-y divide-slate-200 bg-white">
+                        <!-- Populated dynamically via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Empty State Display -->
+            <div id="empty-state" class="hidden text-center py-12">
+                <i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i>
+                <h3 class="text-base font-semibold text-slate-700">No products found</h3>
+                <p class="text-sm text-slate-500">Try adjusting your filters or search terms.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Auth / Login Modal -->
+    <!-- Auth / Login Modal -->
+    <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5 border border-slate-100">
+            <div class="flex items-center justify-between border-b pb-4">
+                <h3 id="auth-modal-title" class="text-lg font-bold text-slate-900">Sign In to Inventory</h3>
+                <button onclick="toggleAuthModal(false)" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Username</label>
+                    <input type="text" id="auth-username" required placeholder="e.g. kosolu" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div id="email-field-container" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email Address *</label>
+                    <input type="email" id="auth-email" placeholder="e.g. kosolu@example.com" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div id="role-field-container">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Role</label>
+                    <select id="auth-role" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                        <option value="Admin">Admin (Full Access)</option>
+                        <option value="Manager">Manager (Add / Edit)</option>
+                        <option value="Clerk">Clerk (View Only)</option>
+                    </select>
+                </div>
+                <div class="pt-2 space-y-3">
+                    <button type="submit" id="auth-submit-btn" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg text-sm shadow transition-colors">
+                        Sign In
+                    </button>
+                    <div class="text-center text-xs text-slate-500">
+                        <span id="auth-toggle-text">Don't have an account?</span>
+                        <button type="button" onclick="toggleAuthMode()" class="text-sky-600 font-semibold hover:underline ml-1" id="auth-toggle-btn">Register</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+<!--    <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">-->
+<!--        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5 border border-slate-100">-->
+<!--            <div class="flex items-center justify-between border-b pb-4">-->
+<!--                <h3 class="text-lg font-bold text-slate-900">Sign In to Inventory</h3>-->
+<!--                <button onclick="toggleAuthModal(false)" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>-->
+<!--            </div>-->
+<!--            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">-->
+<!--                <div>-->
+<!--                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Username</label>-->
+<!--                    <input type="text" id="auth-username" required placeholder="admin / manager / clerk" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>-->
+<!--                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Role (Demo Mode)</label>-->
+<!--                    <select id="auth-role" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">-->
+<!--                        <option value="Admin">Admin (Full Access)</option>-->
+<!--                        <option value="Manager">Manager (Add / Edit)</option>-->
+<!--                        <option value="Clerk">Clerk (View Only)</option>-->
+<!--                    </select>-->
+<!--                </div>-->
+<!--                <div class="pt-2">-->
+<!--                    <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg text-sm shadow transition-colors">-->
+<!--                        Sign In-->
+<!--                    </button>-->
+<!--                </div>-->
+<!--            </form>-->
+<!--        </div>-->
+<!--    </div>-->
+
+    <!-- Add / Edit Product Modal -->
+    <div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-slate-100">
+            <div class="flex items-center justify-between border-b pb-4">
+                <h3 id="modal-title" class="text-lg font-bold text-slate-900">Add New Product</h3>
+                <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            <form onsubmit="handleProductSubmit(event)" class="space-y-4">
+                <input type="hidden" id="product-id">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Product Name *</label>
+                        <input type="text" id="prod-name" required placeholder="e.g. Amoxicillin 500mg" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Category</label>
+                        <input type="text" id="prod-category" placeholder="e.g. Pharmaceuticals" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Batch Number *</label>
+                        <input type="text" id="prod-batch" required placeholder="e.g. BTH-88291" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Quantity *</label>
+                        <input type="number" id="prod-qty" min="0" required placeholder="100" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Manufacture Date</label>
+                        <input type="date" id="prod-mfg" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Expiry Date *</label>
+                        <input type="date" id="prod-expiry" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 border rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg shadow transition-colors">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Message Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+
+    <script>
+        // Default Mock Data for Prototyping
+        const initialMockProducts = [
+            { id: 1, product_name: "Amoxicillin Trihydrate 500mg", category: "Pharmaceuticals", batch_number: "AMX-2024-001", quantity: 250, manufacture_date: "2024-01-10", expiry_date: "2026-10-15" },
+            { id: 2, product_name: "Paracetamol Syrup 120mg/5ml", category: "Pharmaceuticals", batch_number: "PCM-2024-882", quantity: 80, manufacture_date: "2024-02-01", expiry_date: "2026-10-25" },
+            { id: 3, product_name: "Surgical Latex Gloves (L)", category: "Medical Supplies", batch_number: "GLV-9012", quantity: 500, manufacture_date: "2023-05-15", expiry_date: "2027-05-15" },
+            { id: 4, product_name: "Vitamin C Chewable 500mg", category: "Supplements", batch_number: "VTC-2023-11", quantity: 12, manufacture_date: "2023-01-01", expiry_date: "2024-03-10" },
+            { id: 5, product_name: "Insulin Glargine Pen 100u/ml", category: "Cold Chain", batch_number: "INS-7721", quantity: 45, manufacture_date: "2024-03-01", expiry_date: "2026-11-05" }
+        ];
+
+        // System State
+        let currentMode = 'demo'; // 'demo' or 'live'
+        let products = [];
+        let currentUser = { username: 'Kosolu', role: 'Admin', token: 'mock-jwt-token' };
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        // Initialize Application
+        window.onload = function() {
+            // Restore persistent auth token if available
+            const savedUser = localStorage.getItem('expiry_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+            }
+            
+            // Load Mock Data into Local Storage if not present
+            if (!localStorage.getItem('demo_products')) {
+                localStorage.setItem('demo_products', JSON.stringify(initialMockProducts));
+            }
+
+            renderUserProfile();
+            loadProducts();
+        };
+
+        // Switch between Demo Mode and Live Flask Backend API
+        async function setMode(mode) {
+            // currentMode = mode;
+            const demoBtn = document.getElementById('mode-demo');
+            const liveBtn = document.getElementById('mode-live');
+
+            if (mode === 'demo') {
+                currentMode = 'demo';
+                demoBtn.className = "px-3 py-1 text-xs font-semibold rounded-md transition-colors bg-sky-600 text-white";
+                liveBtn.className = "px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-colors";
+                showToast("Switched to Local Demo Data Mode", "info");
+                loadProducts();
+            } else {
+                //Test health check endpoint first
+                try {
+                    const healthRes = await fetch(`${API_BASE_URL}/health`);
+                    if (healthRes.ok) {
+                        currentMode = 'live';
+                        liveBtn.className = "px-3 py-1 text-xs font-semibold rounded-md transition-colors bg-sky-600 text-white";
+                        demoBtn.className = "px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-colors";
+                        showToast("Connected to Live Flask API (http://localhost:5000/api)", "info");
+                        loadProducts();
+                    } else {
+                        throw new Error("Health check returned non-200");
+                    }
+                } catch (err) {
+                    showToast("Cannot connect to Flask server at http://localhost:5000/api", "error");
+                    currentMode = 'demo';
+                    demoBtn.className = "px-3 py-1 text-xs font-semibold rounded-md transition-colors bg-sky-600 text-white";
+                    liveBtn.className = "px-3 py-1 text-xs font-semibold rounded-md text-slate-400 hover:text-white transition-colors";
+                }
+            }
+        }
+
+        // Compute Expiry Status Dynamically
+        function calculateStatus(expiryDateStr) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const expDate = new Date(expiryDateStr);
+            expDate.setHours(0,0,0,0);
+
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return 'Expired';
+            if (diffDays <= 30) return 'Expiring Soon';
+            return 'Fresh';
+        }
+
+        // Fetch & Load Products
+        async function loadProducts() {
+            if (currentMode === 'demo') {
+                const stored = localStorage.getItem('demo_products');
+                products = stored ? JSON.parse(stored) : [];
+                // Attach dynamic status calculations
+                products.forEach(p => p.status = calculateStatus(p.expiry_date));
+                updateDashboardUI();
+            } else {
+                try {
+                    //LIVE FETCH CALL
+                    const response = await fetch(`${API_BASE_URL}/products`, {
+                        headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                    });
+                    if (response.status === 401) {
+                        showToast("Please Sign In to access live backend data.", "info");
+                        toggleAuthModal(true);
+                        return;
+                    }
+                    if (response.ok) {
+                        const data = await response.json();
+                        products = data.products;
+                        updateDashboardUI();
+                    } else {
+                        showToast("Failed to fetch from Flask API. Is server running?", "error");
+                    }
+                } catch (err) {
+                    showToast("Network error contacting API.", "error");
+                    // showToast("API Connection Error. Reverting to Demo Mode.", "error");
+                    // setMode('demo');
+                    // <-- Reverts here on error
+                }
+            }
+        }
+
+        // Update Stats, Alert Banner, and Table
+        function updateDashboardUI() {
+            const freshCount = products.filter(p => p.status === 'Fresh').length;
+            const expiringCount = products.filter(p => p.status === 'Expiring Soon').length;
+            const expiredCount = products.filter(p => p.status === 'Expired').length;
+
+            document.getElementById('stat-total').innerText = products.length;
+            document.getElementById('stat-fresh').innerText = freshCount;
+            document.getElementById('stat-expiring').innerText = expiringCount;
+            document.getElementById('stat-expired').innerText = expiredCount;
+
+            // Trigger Alert Banner if critical items exist
+            const criticalItems = products.filter(p => {
+                const days = Math.ceil((new Date(p.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                return days <= 7;
+            });
+
+            const alertBanner = document.getElementById('alert-banner');
+            if (criticalItems.length > 0) {
+                document.getElementById('alert-banner-text').innerText = 
+                    `Critical Alert: ${criticalItems.length} item(s) are expired or expiring within 7 days!`;
+                alertBanner.classList.remove('hidden');
+            } else {
+                alertBanner.classList.add('hidden');
+            }
+
+            filterProducts();
+        }
+
+        // Render Inventory Table
+        function renderTable(productList) {
+            const tbody = document.getElementById('inventory-table-body');
+            const emptyState = document.getElementById('empty-state');
+            tbody.innerHTML = '';
+
+            if (productList.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            productList.forEach(p => {
+                let statusBadge = '';
+                if (p.status === 'Fresh') {
+                    statusBadge = `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800"><i class="fa-solid fa-check mr-1"></i> Fresh</span>`;
+                } else if (p.status === 'Expiring Soon') {
+                    statusBadge = `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-clock mr-1"></i> Expiring Soon</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800"><i class="fa-solid fa-circle-exclamation mr-1"></i> Expired</span>`;
+                }
+
+                const canEdit = currentUser.role === 'Admin' || currentUser.role === 'Manager';
+                const canDelete = currentUser.role === 'Admin';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-semibold text-slate-800">${escapeHTML(p.product_name)}</td>
+                    <td class="px-4 py-3 text-slate-500">${escapeHTML(p.category || 'N/A')}</td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-600">${escapeHTML(p.batch_number)}</td>
+                    <td class="px-4 py-3 text-center font-medium">${p.quantity}</td>
+                    <td class="px-4 py-3 text-slate-500">${p.manufacture_date || '—'}</td>
+                    <td class="px-4 py-3 font-medium ${p.status === 'Expired' ? 'text-rose-600' : 'text-slate-700'}">${p.expiry_date}</td>
+                    <td class="px-4 py-3">${statusBadge}</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                        ${canEdit ? `<button onclick="editProduct(${p.id})" class="text-sky-600 hover:text-sky-800 p-1"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+                        ${canDelete ? `<button onclick="deleteProduct(${p.id})" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${!canEdit && !canDelete ? `<span class="text-xs text-slate-400">View Only</span>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Search & Filter Logic
+        function filterProducts() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('filter-status').value;
+
+            const filtered = products.filter(p => {
+                const matchesSearch = p.product_name.toLowerCase().includes(searchTerm) || 
+                                      p.batch_number.toLowerCase().includes(searchTerm);
+                const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            });
+
+            renderTable(filtered);
+        }
+
+        // Save / Update Product
+        async function handleProductSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('product-id').value;
+            const newProduct = {
+                product_name: document.getElementById('prod-name').value,
+                category: document.getElementById('prod-category').value,
+                batch_number: document.getElementById('prod-batch').value,
+                quantity: parseInt(document.getElementById('prod-qty').value),
+                manufacture_date: document.getElementById('prod-mfg').value || null,
+                expiry_date: document.getElementById('prod-expiry').value,
+            };
+
+            if (currentMode === 'demo') {
+                if (id) {
+                    // Edit Existing
+                    const index = products.findIndex(p => p.id == id);
+                    if (index !== -1) {
+                        products[index] = { ...products[index], ...newProduct };
+                    }
+                } else {
+                    // Create New
+                    const newId = Date.now();
+                    products.push({ id: newId, ...newProduct });
+                }
+                localStorage.setItem('demo_products', JSON.stringify(products));
+                showToast(id ? "Product updated successfully!" : "Product added successfully!", "success");
+                loadProducts();
+                closeProductModal();
+            } else {
+                // Live Flask API Submission
+                const url = id ? `${API_BASE_URL}/products/${id}` : `${API_BASE_URL}/products`;
+                const method = id ? 'PUT' : 'POST';
+
+                try {
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentUser.token}`
+                        },
+                        body: JSON.stringify(newProduct)
+                    });
+                    if (res.ok) {
+                        showToast("Saved to Live Backend!", "success");
+                        loadProducts();
+                        closeProductModal();
+                    } else {
+                        const errData = await res.json();
+                        showToast(errData.message || "Action failed", "error");
+                    }
+                } catch (err) {
+                    showToast("Network Error connecting to API", "error");
+                }
+            }
+        }
+
+        // Delete Product
+        async function deleteProduct(id) {
+            if (!confirm("Are you sure you want to delete this product record?")) return;
+
+            if (currentMode === 'demo') {
+                products = products.filter(p => p.id !== id);
+                localStorage.setItem('demo_products', JSON.stringify(products));
+                showToast("Product deleted successfully.", "success");
+                loadProducts();
+            } else {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/products/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                    });
+                    if (res.ok) {
+                        showToast("Deleted from live DB.", "success");
+                        loadProducts();
+                    }
+                } catch (err) {
+                    showToast("Failed to delete product.", "error");
+                }
+            }
+        }
+
+        // Export Inventory Logs to CSV
+        function exportToCSV() {
+            if (products.length === 0) {
+                showToast("No product data to export.", "error");
+                return;
+            }
+
+            const headers = ["ID", "Product Name", "Category", "Batch Number", "Quantity", "Manufacture Date", "Expiry Date", "Status"];
+            const rows = products.map(p => [
+                p.id,
+                `"${p.product_name.replace(/"/g, '""')}"`,
+                `"${(p.category || '').replace(/"/g, '""')}"`,
+                `"${p.batch_number}"`,
+                p.quantity,
+                p.manufacture_date || '',
+                p.expiry_date,
+                p.status
+            ]);
+
+            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Expiry_Report_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("CSV Expiry Report downloaded!", "success");
+        }
+
+        // Modal Helpers
+        function openProductModal() {
+            if (currentUser.role === 'Clerk') {
+                showToast("Clerks do not have permission to modify inventory.", "error");
+                return;
+            }
+            document.getElementById('modal-title').innerText = "Add New Product";
+            document.getElementById('product-id').value = '';
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-category').value = '';
+            document.getElementById('prod-batch').value = '';
+            document.getElementById('prod-qty').value = '';
+            document.getElementById('prod-mfg').value = '';
+            document.getElementById('prod-expiry').value = '';
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function editProduct(id) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+
+            document.getElementById('modal-title').innerText = "Edit Product";
+            document.getElementById('product-id').value = product.id;
+            document.getElementById('prod-name').value = product.product_name;
+            document.getElementById('prod-category').value = product.category || '';
+            document.getElementById('prod-batch').value = product.batch_number;
+            document.getElementById('prod-qty').value = product.quantity;
+            document.getElementById('prod-mfg').value = product.manufacture_date || '';
+            document.getElementById('prod-expiry').value = product.expiry_date;
+
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function toggleAuthModal(show) {
+            document.getElementById('auth-modal').classList.toggle('hidden', !show);
+        }
+
+        let isRegisterMode = false;
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            document.getElementById('auth-modal-title').innerText = isRegisterMode ? "Register New Account" : "Sign In to Inventory";
+            document.getElementById('auth-submit-btn').innerText = isRegisterMode ? "Register & Sign In" : "Sign In";
+            document.getElementById('email-field-container').classList.toggle('hidden', !isRegisterMode);
+            document.getElementById('auth-toggle-text').innerText = isRegisterMode ? "Already have an account?" : "Don't have an account?";
+            document.getElementById('auth-toggle-btn').innerText = isRegisterMode ? "Sign In" : "Register";
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            const role = document.getElementById('auth-role').value;
+            const email = document.getElementById('auth-email').value || `${username}@example.com`;
+
+            if (currentMode === 'demo') {
+                currentUser = { username: username, role: role, token: 'mock-jwt-token' };
+                localStorage.setItem('expiry_user', JSON.stringify(currentUser));
+                renderUserProfile();
+                toggleAuthModal(false);
+                loadProducts();
+                showToast(`Signed in as ${username} (${role})`, "success");
+            } else {
+                // Live Flask Backend Authentication
+                try {
+                    if (isRegisterMode) {
+                        // 1. Register account with Flask API
+                        const regRes = await fetch(`${API_BASE_URL}/auth/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username, email, password, role })
+                        });
+                        const regData = await regRes.json();
+
+                        if (!regRes.ok) {
+                            showToast(regData.message || "Registration failed", "error");
+                            return;
+                        }
+                        showToast("Registration successful! Logging in...", "success");
+                    }
+
+                    // 2. Login to get JWT Token
+                    const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const loginData = await loginRes.json();
+
+                    if (loginRes.ok) {
+                        currentUser = {
+                            username: loginData.user.username,
+                            role: loginData.user.role,
+                            token: loginData.token
+                        };
+                        localStorage.setItem('expiry_user', JSON.stringify(currentUser));
+                        renderUserProfile();
+                        toggleAuthModal(false); // Properly closes modal on success
+                        loadProducts();
+                        showToast(`Successfully logged in as ${currentUser.username}`, "success");
+                    } else {
+                        showToast(loginData.message || "Invalid credentials", "error");
+                    }
+                } catch (err) {
+                    showToast("Authentication network error contacting Flask API.", "error");
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('expiry_user');
+            currentUser = { username: 'Guest', role: 'Clerk', token: '' };
+            renderUserProfile();
+            loadProducts();
+            showToast("Signed out successfully.", "info");
+        }
+
+        function renderUserProfile() {
+            const container = document.getElementById('user-profile-section');
+            if (currentUser && currentUser.username !== 'Guest') {
+                container.innerHTML = `
+                    <div class="flex items-center space-x-2 text-sm bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                        <i class="fa-solid fa-user-shield text-sky-400"></i>
+                        <span class="font-semibold text-slate-200">${escapeHTML(currentUser.username)}</span>
+                        <span class="text-xs px-2 py-0.5 bg-sky-900 text-sky-200 rounded font-bold">${currentUser.role}</span>
+                    </div>
+                    <button onclick="logout()" class="text-slate-400 hover:text-rose-400 text-sm font-medium transition-colors">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="toggleAuthModal(true)" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-medium text-sm rounded-lg shadow transition-colors">
+                        Sign In
+                    </button>
+                `;
+            }
+        }
+
+        function dismissAlertBanner() {
+            document.getElementById('alert-banner').classList.add('hidden');
+        }
+
+        function showToast(message, type = "info") {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-800 text-white";
+            if (type === "success") bgClass = "bg-emerald-600 text-white";
+            if (type === "error") bgClass = "bg-rose-600 text-white";
+
+            toast.className = `px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium flex items-center space-x-2 transition-all transform translate-y-2 ${bgClass}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
