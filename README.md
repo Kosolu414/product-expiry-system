@@ -80,7 +80,7 @@ python run.py
 ```
 Open your browser and navigate to http://localhost:5000. You can toggle to the Live API mode via the navigation bar to register an account and interact with the database.
 
-# 🔒 Security Practices Implemented
+## 🔒 Security Practices Implemented
 
 Password Hashing: Plaintext passwords are never stored; hashing is enforced using Flask-Bcrypt salt rounds.
 
@@ -88,6 +88,6 @@ Stateless Authentication: Protected endpoints validate cryptographic JSON Web To
 
 Least Privilege Principle: UI and API routes evaluate user roles before authorizing mutations (POST, PUT, DELETE).
 
-# 📄 License
+## 📄 License
 
 This project was developed as a Computer Science final year project.
