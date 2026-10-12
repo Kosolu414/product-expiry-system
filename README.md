@@ -82,11 +82,11 @@ Open your browser and navigate to http://localhost:5000. You can toggle to the L
 
 ## 🔒 Security Practices Implemented
 
-Password Hashing: Plaintext passwords are never stored; hashing is enforced using Flask-Bcrypt salt rounds.
+* **Password Hashing:** Plaintext passwords are never stored; hashing is enforced using Flask-Bcrypt salt rounds.
 
-Stateless Authentication: Protected endpoints validate cryptographic JSON Web Tokens (JWT) attached via request headers.
+* **Stateless Authentication:** Protected endpoints validate cryptographic JSON Web Tokens (JWT) attached via request headers.
 
-Least Privilege Principle: UI and API routes evaluate user roles before authorizing mutations (POST, PUT, DELETE).
+* **Least Privilege Principle:** UI and API routes evaluate user roles before authorizing mutations (POST, PUT, DELETE).
 
 ## 📄 License
 
